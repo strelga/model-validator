@@ -1,0 +1,24 @@
+{
+  "name": "model-validator",
+  "version": "0.0.0",
+  "description": "Validator of MongoDB models",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/strelga/model-validator.git"
+  },
+  "keywords": [
+    "model",
+    "validation",
+    "validator"
+  ],
+  "author": "Grigory Streltsov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/strelga/model-validator/issues"
+  },
+  "homepage": "https://github.com/strelga/model-validator"
+}
