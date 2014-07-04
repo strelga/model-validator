@@ -4,7 +4,7 @@
   "description": "Validator of MongoDB models",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "make test"
   },
   "repository": {
     "type": "git",
@@ -20,5 +20,9 @@
   "bugs": {
     "url": "https://github.com/strelga/model-validator/issues"
   },
-  "homepage": "https://github.com/strelga/model-validator"
+  "homepage": "https://github.com/strelga/model-validator",
+  "devDependencies": {
+    "mocha": "^1.20.1",
+    "should": "^4.0.4"
+  }
 }
