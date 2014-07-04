@@ -53,6 +53,10 @@ var isObject = function (arg) {
 
 var Schema = module.exports = function (conditions) {
 	this.paths = {};
+	
+	this.hasMixed = false;
+	this.mixedPaths = {};
+
 	this.constraints = {};
 
 	this.add(conditions);
@@ -80,40 +84,117 @@ var Schema = module.exports = function (conditions) {
 // 	}
 // };
 
-var isNotCondition = function (element) {
-	return isObject(element) && (!element.type || element.type.type) && (Object.keys(element).length);
+var isCondition = function (element) {
+	return !isObject(element) || (element.type && !element.type.type) || !(Object.keys(element).length);
 };
 
-Schema.prototype.add = function (obj) {
-	var paths = {};
+var hasMixedField = function (element) {
+	return !!(element.mixed);
+}
 
-	if (!isObject(obj)) {
-		obj = {};
-	}
+/**
+ * [query] Transforms the object of conditions to the object of paths.
+ * 
+ * @param {Object} obj The object of conditions.
+ * @return {Object} The object of paths.
+ */
+// Schema.prototype.add = function (obj) {
+// 	var paths = {};
 
-	for (var key in obj) {
-		if (isNotCondition(obj[key])) {
-		    var subpaths = this.add(obj[key]);
+// 	if (!isObject(obj)) {
+// 		obj = {};
+// 	}
 
-		    for (var subPathKey in subpaths) {
-			    var pathKey = key + '.' + subPathKey;
+// 	for (var key in obj) {
+// 		if (isCondition(obj[key])) {
+// 			if (hasMixedField(obj)) {
 
-			    subpaths[subPathKey]['pathArray'].unshift(key)
-		    	paths[pathKey] = {
-		    		conditions : subpaths[subPathKey]['conditions'],
-		    		pathArray : subpaths[subPathKey]['pathArray']
-		    	}
-		    }
-		} else {
-			paths[key] = {
-				conditions : obj[key],
-				pathArray : [key]
-			};
+// 			} else {
+// 				paths[key] = {
+// 					conditions : obj[key],
+// 					pathArray : [key]
+// 				};
+// 			}
+// 		} else {
+// 			var subpaths = this.add(obj[key]);
+
+// 		    for (var subPathKey in subpaths) {
+// 			    var pathKey = key + '.' + subPathKey;
+
+// 			    subpaths[subPathKey]['pathArray'].unshift(key)
+// 		    	paths[pathKey] = {
+// 		    		conditions : subpaths[subPathKey]['conditions'],
+// 		    		pathArray : subpaths[subPathKey]['pathArray']
+// 		    	}
+// 		    }
+// 		}
+// 	}
+
+// 	return paths;
+// };
+
+var makePathString = function (prefixString, key) {
+	return (prefixString) 
+		? prefixString + '.' + key
+		: key;
+};
+
+var makePathArray = function (prefixArray, key) {
+	var pathArray = prefixArray.slice();
+	pathArray.push(key);
+	
+	return pathArray;
+}
+
+Schema.prototype.add = function (obj, prefix, mixedPrefixString) {
+	if (!prefix) {
+		prefix = {
+			string : undefined,
+			array : []
 		}
 	}
 
-	return paths;
+	for (var key in obj) {
+		if (isCondition(obj[key])) {
+			if (hasMixedField(obj[key])) {
+				// there is the field 'mixed' in obj[key]
+				this.hasMixed = true;
+
+				for (var mixedKey in obj[key].mixed) {
+					var nextMixedPrefixString = makePathString(makePathString(prefix.string, key), mixedKey);
+					var nextPrefix = {
+						string : makePathString(prefix.string, key),
+						array : makePathArray(prefix.array, key)
+					};
+
+					this.add(obj[key]['mixed'][mixedKey], nextPrefix, nextMixedPrefixString);
+				}
+			} else {
+				// there is no field 'mixed' in obj[key] and obj[key] is just a condition
+				var path = {
+					conditions : obj[key],
+					pathArray : makePathArray(prefix.array, key)
+				};
+
+				if (mixedPrefixString) {
+					this.mixedPaths[mixedPrefixString] = path;
+				} else {
+					var pathString = makePathString(prefix.string, key);
+					this.paths[pathString] = path;
+				}
+			}
+		} else {
+			// obj[key] is just another nested object, go deeper through it
+			var nextPrefix = {
+				string : makePathString(prefix.string, key),
+				array : makePathArray(prefix.array, key)
+			}
+
+			this.add(obj[key], nextPrefix, mixedPrefixString);
+		}
+	}
 };
+
 
 /**
  * [validate description]
