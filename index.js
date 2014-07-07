@@ -1,8 +1,6 @@
 "use strict";
 
-var isObject = function (arg) {
-  return '[object Object]' == toString.call(arg);
-}
+var _ = require('underscore');
 
 var Schema = module.exports = function (conditions) {
     this.paths = {};
@@ -16,6 +14,10 @@ var Schema = module.exports = function (conditions) {
 
     this.cast();
 };
+
+var isObject = function (arg) {
+  return '[object Object]' == toString.call(arg);
+}
 
 var isCondition = function (element) {
     return !isObject(element) || (element.type && !element.type.type) || !(Object.keys(element).length);
@@ -98,7 +100,7 @@ var makePathArray = function (prefixArray, key) {
 Schema.prototype.add = function (obj, prefix, mixedPrefixStrings) {
     if (!prefix) {
         prefix = {
-            string : undefined,
+            string : '',
             array : []
         }
     }
@@ -167,7 +169,7 @@ Schema.prototype.add = function (obj, prefix, mixedPrefixStrings) {
  * @param  {[type]} obj [description]
  * @return {[type]}     [description]
  *
- * @api private
+ * @api public
  */
 Schema.prototype.validate = function (obj) {
 
@@ -192,8 +194,7 @@ Schema.prototype.validate = function (obj) {
  *  constraints = {
  *      'field1' : {
  *          constraints : {
- *              default : undefined,
- *              required : true,
+ *              default : 'hello',
  *              check : function (element) {
  *                  return isString(element);
  *              }
@@ -203,7 +204,6 @@ Schema.prototype.validate = function (obj) {
  *      'field2.field3' : {
  *          constraints : {
  *              default : true,
- *              required : false,
  *              check : function (element) {
  *                  return isBoolean(element);
  *              }
@@ -215,4 +215,16 @@ Schema.prototype.validate = function (obj) {
  * @api private
  */
 Schema.prototype.cast = function () {
+
 };
+
+function castField(conditions) {
+    // Clone the object so we cannot the fields of the original object
+    conditions = _.clone(conditions);
+    
+    var constraints = {};
+
+    constraints.default = conditions.default;
+
+
+}

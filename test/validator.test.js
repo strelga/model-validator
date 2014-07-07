@@ -24,7 +24,7 @@ describe('Validator', function () {
 						return errMsg;
 					}
 				}
-			}
+			};
 			assertGreaterThan = function (number) {
 				return function (element) {
 					if (element > number) {
@@ -35,7 +35,7 @@ describe('Validator', function () {
 						return errMsg;
 					}	
 				}
-			}
+			};
 		});
 
 		it('getAssert should return function', function () {
