@@ -2,11 +2,15 @@
 
 var _ = require('underscore');
 
+var select = require('./lib/types/select');
+
 var Schema = module.exports = function (conditions) {
+    this.pathsInit = {};
     this.paths = {};
-    
+
     this.hasMixed = false;
-    this.mixedPaths = {};
+    this.mixedPathsInit = {};
+    this.paths = {};
 
     this.constraints = {};
 
@@ -42,7 +46,7 @@ var makePathArray = function (prefixArray, key) {
 
 /**
  * Gets object of conditions and transformes it into set of regular paths
- * and mixed paths, changes variables this.paths, this.mixedPaths and sets
+ * and mixed paths, changes variables this.pathsInit, this.mixedPathsInit and sets
  * this.hasMixed to true if there are mixed fields in conditions.
  *
  * example:
@@ -67,7 +71,7 @@ var makePathArray = function (prefixArray, key) {
  *       }
  *   }
  *
- * this.mixedPaths = { 'field1.votes': 
+ * this.mixedPathsInit = { 'field1.votes': 
  *  { 'field1.cntId': 
  *     { conditions: { type: [Function: String], required: true },
  *       pathArray: [ 'field1', 'cntId' ] },
@@ -133,20 +137,20 @@ Schema.prototype.add = function (obj, prefix, mixedPrefixStrings) {
                 }
             } else {
                 // there is no field 'mixed' in obj[key] and obj[key] is just a condition
-                var path = {
+                var value = {
                     conditions : obj[key],
                     pathArray : makePathArray(prefix.array, key)
                 };
 
-                var pathString = makePathString(prefix.string, key);
+                var path = makePathString(prefix.string, key);
 
                 if (mixedPrefixStrings.current) {
-                    if (!this.mixedPaths[mixedPrefixStrings.current]) {
-                        this.mixedPaths[mixedPrefixStrings.current] = {};
+                    if (!this.mixedPathsInit[mixedPrefixStrings.current]) {
+                        this.mixedPathsInit[mixedPrefixStrings.current] = {};
                     }
-                    this.mixedPaths[mixedPrefixStrings.current][pathString] = path;
+                    this.mixedPathsInit[mixedPrefixStrings.current][path] = value;
                 } else {
-                    this.paths[pathString] = path;
+                    this.pathsInit[path] = value;
                 }
             }
         } else {
@@ -176,7 +180,7 @@ Schema.prototype.validate = function (obj) {
 };
 
 /**
- * Casts paths with conditions (this.paths) to paths with constraints object (this.constraints).
+ * Casts paths with conditions (this.pathsInit) to paths with constraints object (this.paths).
  *
  *  paths = {
  *      'field1' : {
@@ -195,7 +199,7 @@ Schema.prototype.validate = function (obj) {
  *      'field1' : {
  *          constraints : {
  *              default : 'hello',
- *              check : function (element) {
+ *              assert : function (element) {
  *                  return isString(element);
  *              }
  *          },
@@ -204,7 +208,7 @@ Schema.prototype.validate = function (obj) {
  *      'field2.field3' : {
  *          constraints : {
  *              default : true,
- *              check : function (element) {
+ *              assert : function (element) {
  *                  return isBoolean(element);
  *              }
  *          },
@@ -215,16 +219,44 @@ Schema.prototype.validate = function (obj) {
  * @api private
  */
 Schema.prototype.cast = function () {
+    for (var path in this.pathsInit) {
+        this.paths[path] = {
+            constraints : condsToConstrs(this.pathsInit[path].conditions),
+            pathArray : this.pathsInit[path].pathArray
+        };
+    }
 
+    for (var mixedPath in this.mixedPathsInit) {
+        this.mixedPaths[mixedPath] = {};
+        for (var path in this.mixedPathsInit[mixedPath]) {
+            this.mixedPaths[mixedPath][path] = {
+                constraints : condsToConstrs(this.mixedPathsInit[mixedPath][path].conditions),
+                pathArray : this.mixedPathsInit[mixedPath][path].pathArray
+            };
+        }
+    }
 };
 
-function castField(conditions) {
-    // Clone the object so we cannot the fields of the original object
-    conditions = _.clone(conditions);
-    
-    var constraints = {};
+/**
+ * Transforms conditions of the form {type : String, required : true, default : 'hello'}
+ * to constraints of the form 
+ * {
+ *     default : 'hello',
+ *     assert : function (value) {
+ *         return isString(value) && isRequired(value); // the actual assertions are more complex
+ *     }
+ * }
+ * @param  {Object} conditions 
+ * @return {Object}            Object of constraints.
+ */
+function condsToConstrs(conditions) {
+    var ret;
 
+    var constraints = {};
     constraints.default = conditions.default;
 
+    var validator = select.validator(conditions.type);
+    constraints.assert = validator.getFullValueValidator(conditions);
 
+    return constraints;
 }

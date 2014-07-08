@@ -1,5 +1,7 @@
 "use strict";
 
+var sinon = require('sinon');
+
 var Validator = require('../lib/validator');
 
 describe('Validator', function () {
@@ -15,25 +17,29 @@ describe('Validator', function () {
 
 		before(function () {
 			assertLessThan = function (number) {
-				return function (element) {
+				return function (element, path) {
+					var ret = {};
 					if (element < number) {
-						return;
+						ret.ok = true;
 					} else {
-						var errMsg = '%s should be less than ' + number + '. ' +
+						ret.ok = false;
+						ret.msg = path + ' should be less than ' + number + '. ' +
 							element + ' given.';
-						return errMsg;
 					}
+					return ret;
 				}
 			};
 			assertGreaterThan = function (number) {
-				return function (element) {
+				return function (element, path) {
+					var ret = {};
 					if (element > number) {
-						return;
+						ret.ok = true;
 					} else {
-						var errMsg = '%s should be greater than ' + number + '. ' +
+						ret.ok = false;
+						ret.msg = path + ' should be greater than ' + number + '. ' +
 							element + ' given.';
-						return errMsg;
-					}	
+					}
+					return ret;
 				}
 			};
 		});
@@ -50,9 +56,10 @@ describe('Validator', function () {
 
 			var assert = validator.getAssert([func1, func2]);
 
-			var errMsg = assert(1);
+			var res = assert(1);
 
-			errMsg.should.be.type('string');
+			res.msg.should.be.type('string');
+			res.ok.should.not.be.ok;
 		});
 
 		it('assert should return undefined if all conditions in functions are satisfied', function () {
@@ -61,9 +68,57 @@ describe('Validator', function () {
 
 			var assert = validator.getAssert([func1, func2]);
 
-			var errMsg = assert(6);
+			var res = assert(6);
 
-			(errMsg === undefined).should.be.ok;
+			res.ok.should.be.ok;
+		});
+	});
+
+	describe('#assertRequired', function () {
+		it('should return ok=true if the value is present', function () {
+			var res = validator.assertRequired(5);
+
+			res.ok.should.be.ok;
+		});
+
+		it('should return ok=false and msg if there is no value', function () {
+			var res = validator.assertRequired(undefined);
+
+			res.ok.should.not.be.ok;
+			res.msg.should.be.type('string');
+		});
+	});
+
+	describe('#getFullValueValidator', function () {
+		beforeEach(function () {
+			validator.validators.type = sinon.stub();
+			validator.validators.type.returns({ok : true});
+			validator.validators.required = sinon.stub();
+			validator.validators.required.returns({ok : true});
+		});
+
+		it('should call validators.type function', function () {
+			var assertValue = validator.getFullValueValidator({});
+			var res = assertValue(5);
+
+			validator.validators.type.withArgs(5).calledOnce.should.be.ok;
+			res.ok.should.be.ok;
+		});
+
+		it('should call functions specified in arguments', function () {
+			var assertValue = validator.getFullValueValidator({required : true});
+			var res = assertValue(5);
+
+			validator.validators.type.withArgs(5).calledOnce.should.be.ok;
+			validator.validators.required.withArgs(5).calledOnce.should.be.ok;
+			res.ok.should.be.ok;
+		});
+
+		it('should throw if one of specified conditions is not in validators hash', function () {
+			var func = function () {
+				var assertValue = validator.getFullValueValidator({required : true, wrongKey : true});
+			}
+			func.should.throw();
 		});
 	});
 });
