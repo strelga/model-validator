@@ -111,4 +111,71 @@ describe('Schema class', function () {
 			schemaStub.mixedPathsInit['field1.connections']['field1.connId'].pathArray.should.match(['field1', 'connId']);
 		});
 	});
+
+	describe('#cast', function () {
+		var schemaStub;
+
+		beforeEach(function () {
+			var SchemaStub = function () {
+				this.pathsInit = {};
+				this.hasMixed = false;
+				this.mixedPathsInit = {};
+
+				this.paths = {};
+				this.mixedPaths = {}
+			};
+
+			SchemaStub.prototype.add = Schema.prototype.add;
+
+			SchemaStub.prototype.cast = Schema.prototype.cast;
+
+			schemaStub = new SchemaStub();
+		});
+
+		it('should cast pathsInit to paths', function () {
+			var conditions = {
+				field1 : { type : String, required : true },
+				field2 : {
+					field3 : { type : String, required : false, default : 'hello' },
+				}
+			};
+
+			schemaStub.add(conditions);
+
+			schemaStub.cast();
+
+			(schemaStub.paths['field1'].constraints.default === undefined).should.be.ok;
+			schemaStub.paths['field1'].constraints.assert.should.be.type('function');
+			schemaStub.paths['field1'].pathArray.should.match(['field1']);
+			schemaStub.paths['field2.field3'].constraints.default.should.match(/hello/);
+			schemaStub.paths['field2.field3'].constraints.assert.should.be.type('function');
+			schemaStub.paths['field2.field3'].pathArray.should.match(['field2', 'field3']);
+		});
+
+		it('should cast mixedPathsInit to mixedPaths', function () {
+			var conditions = {
+				field1 : {
+					type : 'mixed', mixed : {
+						votes : { 
+							cntId : {type : String, required : true}
+						},
+						connections : {
+							connId : {type : String, required : true, default : '1'}
+						}
+					}
+				}
+			};
+
+			schemaStub.add(conditions);
+
+			schemaStub.cast();
+
+			(schemaStub.mixedPaths['field1.votes']['field1.cntId'].constraints.default === undefined).should.be.ok;
+			schemaStub.mixedPaths['field1.votes']['field1.cntId'].constraints.assert.should.be.type('function');
+			schemaStub.mixedPaths['field1.votes']['field1.cntId'].pathArray.should.match(['field1', 'cntId']);
+			schemaStub.mixedPaths['field1.connections']['field1.connId'].constraints.default.should.match('1');
+			schemaStub.mixedPaths['field1.connections']['field1.connId'].constraints.assert.should.be.type('function');
+			schemaStub.mixedPaths['field1.connections']['field1.connId'].pathArray.should.match(['field1', 'connId']);
+		});
+	});
 });

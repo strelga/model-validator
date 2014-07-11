@@ -4,13 +4,15 @@ var _ = require('underscore');
 
 var select = require('./lib/types/select');
 
-var Schema = module.exports = function (conditions) {
+var Schema = module.exports = function (conditions, options) {
+    this.throws = (options && options.throws) ? option.throws : true;
+
     this.pathsInit = {};
     this.paths = {};
 
     this.hasMixed = false;
     this.mixedPathsInit = {};
-    this.paths = {};
+    this.mixedPaths = {};
 
     this.constraints = {};
 
@@ -175,16 +177,40 @@ Schema.prototype.add = function (obj, prefix, mixedPrefixStrings) {
  *
  * @api public
  */
-Schema.prototype.validate = function (obj) {
+Schema.prototype.validate = function (obj, mixedPaths) {
+    var ret = {
+        obj : {},
+        ok : false,
+        msgs : {}
+    }
 
+    // don't use for (path in this.paths) here because it is 2 times slower
+    var pathKeys = Object.keys(this.paths);
+
+    for (var i = 0, l = pathKeys.length; i < l; i++) {
+        path = pathKeys[i];
+
+
+    }
 };
+
+function validateField(obj, path, constraints, pathArray, retObj) {
+    var current = obj[pathArray[0]];
+    var currentRet;
+    if (current)  
+    for (var i = 1, l = pathArray.length; i < l; i++) {
+        if (current) {
+            current = current[pathArray[i]];
+        }
+    }
+}
 
 /**
  * Casts paths with conditions (this.pathsInit) to paths with constraints object (this.paths).
  *
  *  paths = {
  *      'field1' : {
- *          conditions : {type : String, required : true}
+ *          conditions : {type : String, required : true, default : hello}
  *          pathArray : ['field1']
  *      },
  *      'field2.field3' : {
@@ -199,6 +225,7 @@ Schema.prototype.validate = function (obj) {
  *      'field1' : {
  *          constraints : {
  *              default : 'hello',
+ *              required : true,
  *              assert : function (element) {
  *                  return isString(element);
  *              }
@@ -208,6 +235,7 @@ Schema.prototype.validate = function (obj) {
  *      'field2.field3' : {
  *          constraints : {
  *              default : true,
+ *              required : false,
  *              assert : function (element) {
  *                  return isBoolean(element);
  *              }
@@ -242,6 +270,7 @@ Schema.prototype.cast = function () {
  * to constraints of the form 
  * {
  *     default : 'hello',
+ *     required : true,
  *     assert : function (value) {
  *         return isString(value) && isRequired(value); // the actual assertions are more complex
  *     }
@@ -250,10 +279,16 @@ Schema.prototype.cast = function () {
  * @return {Object}            Object of constraints.
  */
 function condsToConstrs(conditions) {
-    var ret;
-
     var constraints = {};
-    constraints.default = conditions.default;
+    if (typeof conditions.default !== 'undefined') {
+        constraints.default = conditions.default;
+        delete conditions.default;
+    }
+    if (typeof conditions.required !== 'undefined') {
+        constraints.required = conditions.required;
+    } else {
+        constraints.required = false;
+    }
 
     var validator = select.validator(conditions.type);
     constraints.assert = validator.getFullValueValidator(conditions);
