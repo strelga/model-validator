@@ -5,7 +5,7 @@ var _ = require('underscore');
 var select = require('./lib/types/select');
 
 var Schema = module.exports = function (conditions, options) {
-    this.throws = (options && options.throws) ? option.throws : true;
+    this.throws = (options && options.throws) ? options.throws : true;
 
     this.pathsInit = {};
     this.paths = {};
@@ -177,38 +177,137 @@ Schema.prototype.add = function (obj, prefix, mixedPrefixStrings) {
  *
  * @api public
  */
-Schema.prototype.validate = function (obj, mixedPaths) {
-    var ret = {
-        obj : {},
-        ok : false,
+Schema.prototype.validate = function (obj, mixedPath) {
+    var retObj = {};
+    var results = {
+        ok : true,
         msgs : {}
     }
 
-    // don't use for (path in this.paths) here because it is 2 times slower
-    var pathKeys = Object.keys(this.paths);
+    this.validateByPaths(obj, this.paths, retObj, results);
 
-    for (var i = 0, l = pathKeys.length; i < l; i++) {
-        path = pathKeys[i];
+    var mixedPaths = Array.prototype.slice.call(arguments, 1);
 
+    for (var i = 0, l = mixedPaths.length; i < l; i++) {
+        var mixedPath = mixedPaths[i];
 
+        var paths = this.mixedPaths[mixedPath];
+        if (paths) {
+            this.validateByPaths(obj, paths, retObj, results);
+        }
+    }
+
+    if (this.throws) {
+        if (!results.ok) {
+            throw new Error(JSON.stringify(results.msgs));
+        }
+        return retObj;
+    } else {
+        results.obj = retObj;
+        return results;
     }
 };
 
-function validateField(obj, path, constraints, pathArray, retObj) {
-    var current = obj[pathArray[0]];
-    var currentRet;
-    if (current)  
-    for (var i = 1, l = pathArray.length; i < l; i++) {
-        if (current) {
-            current = current[pathArray[i]];
+Schema.prototype.validateByPaths = function (obj, paths, retObj, results) {
+    // don't use for (path in this.paths) here because it is 2 times slower
+    var pathKeys = Object.keys(paths);
+
+    for (var i = 0, l = pathKeys.length; i < l; i++) {
+        var path = pathKeys[i];
+        var param = paths[path];
+
+        var result = this.validateField(obj, param.constraints, param.pathArray, retObj);
+
+        if (!result.ok) {
+            results.ok = false;
+            results.msgs[path] = result.msg;
         }
     }
+};
+
+function isIn(key, obj) {
+    if ((typeof obj === "object") && (key in obj)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+/**
+ * Validates the field specified with pathArray using constaints.
+ * Builds retObj - the object to return after validation of all fields.
+ * retObj differs from obj in substituting the defaults to fields.
+ *
+ * The algorithm.
+ * - Iterate over object according to pathArray and build retObj. Pass the value
+ * of the given field to assert function of the constraints object.
+ * - If during the iteration we encounter that there is no such field in obj,
+ * check whether default is set.
+ * -- If default is set, continue creating retObj and set the value in it to default.
+ * -- If default is not set, check whether the field is required.
+ * --- If it is required, return from field validator with error.
+ * --- If it is not required, return from field validator with {ok : true}.
+ * 
+ * @param  {Object} obj         The object containing the field to be validated.
+ * @param  {Object} constraints The object containing the default value if present and the assert function.
+ * @param  {Array} pathArray   The path to the field in obj to be validated.
+ * @param  {Object} retObj      The object to be returned from entire validator.
+ * @return {Object}             The result of validation of the field.
+ */
+Schema.prototype.validateField = function (obj, constraints, pathArray, retObj) {
+    var current = obj;
+    var currentRet = retObj;
+    var noSuchFieldInObj = false;
+
+    for (var i = 0, l = pathArray.length; i < l; i++) {
+        var key = pathArray[i];
+
+        if (isIn(key, current)) {
+            current = current[key];
+        } else {
+            // if we are here, there was no such field in obj
+            if (constraints.default === undefined) {
+                if (constraints.required === true) {
+                    return {
+                        ok : false,
+                        msg : "Is required. Now it is absent."
+                    };
+                } else {
+                    return {
+                        ok : true
+                    };
+                }
+            }
+            noSuchFieldInObj = true;
+        }
+
+        if (!isIn(key, currentRet)) {
+            if (i !== l-1) {
+                currentRet[key] = {};
+            } else {
+                currentRet[key] = current;
+                break;
+            }
+        }
+
+        currentRet = currentRet[key];
+    }
+
+    if (noSuchFieldInObj) {
+        // If we get here, constraints.default is set, because otherwise
+        // we would have returned from the function
+        currentRet[key] = constraints.default;
+    }
+
+    var result = constraints.assert(currentRet[key]);
+
+    return result;
 }
 
 /**
  * Casts paths with conditions (this.pathsInit) to paths with constraints object (this.paths).
  *
- *  paths = {
+ *  pathsInit = {
  *      'field1' : {
  *          conditions : {type : String, required : true, default : hello}
  *          pathArray : ['field1']
@@ -221,7 +320,7 @@ function validateField(obj, path, constraints, pathArray, retObj) {
  *  
  *  -> casts to ->
  *  
- *  constraints = {
+ *  paths = {
  *      'field1' : {
  *          constraints : {
  *              default : 'hello',
@@ -284,8 +383,11 @@ function condsToConstrs(conditions) {
         constraints.default = conditions.default;
         delete conditions.default;
     }
-    if (typeof conditions.required !== 'undefined') {
-        constraints.required = conditions.required;
+    if ('required' in conditions) {
+        if (conditions.required === true) {
+            constraints.required = conditions.required;
+        }
+        delete conditions.required;
     } else {
         constraints.required = false;
     }

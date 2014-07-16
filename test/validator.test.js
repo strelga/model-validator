@@ -74,20 +74,20 @@ describe('Validator', function () {
 		});
 	});
 
-	describe('#assertRequired', function () {
-		it('should return ok=true if the value is present', function () {
-			var res = validator.assertRequired(5);
+	// describe('#assertRequired', function () {
+	// 	it('should return ok=true if the value is present', function () {
+	// 		var res = validator.assertRequired(5);
 
-			res.ok.should.be.ok;
-		});
+	// 		res.ok.should.be.ok;
+	// 	});
 
-		it('should return ok=false and msg if there is no value', function () {
-			var res = validator.assertRequired(undefined);
+	// 	it('should return ok=false and msg if there is no value', function () {
+	// 		var res = validator.assertRequired(undefined);
 
-			res.ok.should.not.be.ok;
-			res.msg.should.be.type('string');
-		});
-	});
+	// 		res.ok.should.not.be.ok;
+	// 		res.msg.should.be.type('string');
+	// 	});
+	// });
 
 	describe('#getFullValueValidator', function () {
 		beforeEach(function () {

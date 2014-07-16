@@ -2,6 +2,8 @@
 
 var util = require('util');
 
+var sinon = require('sinon');
+
 var Schema = require('../');
 
 describe('Schema class', function () {
@@ -176,6 +178,135 @@ describe('Schema class', function () {
 			schemaStub.mixedPaths['field1.connections']['field1.connId'].constraints.default.should.match('1');
 			schemaStub.mixedPaths['field1.connections']['field1.connId'].constraints.assert.should.be.type('function');
 			schemaStub.mixedPaths['field1.connections']['field1.connId'].pathArray.should.match(['field1', 'connId']);
+		});
+	});
+
+	describe('#validateField', function () {
+		var obj;
+		var retObj;
+		var constraints;
+		var pathArray;
+
+		it('should augment retObj with additional fields if they are in obj', function () {
+			var obj = {
+				field1 : {
+					field2 : 'hello',
+					field3 : 'world'
+				},
+				field4 : 'hi, guys'
+			};
+
+			var retObj = {
+				field1 : {
+					field2 : 'hello'
+				}
+			};
+
+			var constraints = {
+				default : 'world',
+				assert : function () {return {ok:true}}
+			};
+
+			var spy = sinon.spy(constraints, 'assert');
+
+			var pathArray = ['field1', 'field3'];
+
+			var result = Schema.prototype.validateField(obj, constraints, pathArray, retObj);
+
+			retObj.field1.field3.should.match('world');
+			spy.withArgs('world').calledOnce.should.be.ok;
+		});
+
+		it('should augment retObj with additional fields if they are not in obj and default is set', function () {
+			var obj = {
+				field1 : {
+					field2 : 'hello'
+				},
+				field4 : 'hi, guys'
+			};
+
+			var retObj = {
+				field1 : {
+					field2 : 'hello'
+				}
+			};
+
+			var constraints = {
+				default : 'world',
+				assert : function () {return {ok:true}}
+			};
+
+			var spy = sinon.spy(constraints, 'assert');
+
+			var pathArray = ['field1', 'field3'];
+
+			var result = Schema.prototype.validateField(obj, constraints, pathArray, retObj);
+
+			// console.log(retObj);
+
+			retObj.field1.field3.should.match('world');
+			spy.withArgs('world').calledOnce.should.be.ok;
+		});
+
+		it('should not augment retObj if the field from pathArray is not in obj and default is not given', function () {
+			var obj = {
+				field1 : {
+					field2 : 'hello'
+				},
+				field4 : 'hi, guys'
+			};
+
+			var retObj = {
+				field1 : {
+					field2 : 'hello'
+				}
+			};
+
+			var constraints = {
+				assert : function () {return {ok:true}}
+			};
+
+			var spy = sinon.spy(constraints, 'assert');
+
+			var pathArray = ['field1', 'field3'];
+
+			var result = Schema.prototype.validateField(obj, constraints, pathArray, retObj);
+
+			// console.log(retObj);
+
+			('field3' in retObj.field1).should.be.not.ok;
+			spy.called.should.be.not.ok;
+		});
+
+		it('should return ok:false if the field from pathArray is not in obj, default is not given, but required is true', function () {
+			var obj = {
+				field1 : {
+					field2 : 'hello'
+				},
+				field4 : 'hi, guys'
+			};
+
+			var retObj = {
+				field1 : {
+					field2 : 'hello'
+				}
+			};
+
+			var constraints = {
+				default : undefined,
+				required : true,
+				assert : function () {return {ok:true}}
+			};
+
+			var spy = sinon.spy(constraints, 'assert');
+
+			var pathArray = ['field1', 'field3'];
+
+			var result = Schema.prototype.validateField(obj, constraints, pathArray, retObj);
+
+			result.ok.should.be.not.ok;
+			result.msg.should.be.type('string');
+
 		});
 	});
 });
