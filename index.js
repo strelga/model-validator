@@ -2,6 +2,7 @@
 
 var _ = require('underscore');
 
+var ValidationError = require('./lib/error');
 var select = require('./lib/types/select');
 
 var Schema = module.exports = function (conditions, options) {
@@ -171,10 +172,23 @@ Schema.prototype.add = function (obj, prefix, mixedPrefixStrings) {
 
 
 /**
- * [validate description]
- * @param  {[type]} obj [description]
- * @return {[type]}     [description]
- *
+ * Validates the object obj using precompiled constraints.
+ * If mixed paths are specified, validates them too.
+ * 
+ * @param  {Object} obj         The object to be validated.
+ * @param  {String} mixedPath1  The first mixed path.
+ * @param  {String} mixedPath2  The second mixed path.
+ * ... and so on, arbitrary number of mixedPaths can be specified
+ * if this.throws === true:
+ * @return {Object}     The resulting object with defaults substituted.
+ * @throws {ValidationError}    If some constraints were unmet.
+ * if this.throws === false:
+ * @return {Object}     {
+ *                         ok : true|false,
+ *                         msgs : {Error messages here},
+ *                         obj : {The resulting object}
+ *                      }
+ * 
  * @api public
  */
 Schema.prototype.validate = function (obj, mixedPath) {
@@ -186,10 +200,8 @@ Schema.prototype.validate = function (obj, mixedPath) {
 
     this.validateByPaths(obj, this.paths, retObj, results);
 
-    var mixedPaths = Array.prototype.slice.call(arguments, 1);
-
-    for (var i = 0, l = mixedPaths.length; i < l; i++) {
-        var mixedPath = mixedPaths[i];
+    for (var i = 1, l = arguments.length; i < l; i++) {
+        var mixedPath = arguments[i];
 
         var paths = this.mixedPaths[mixedPath];
         if (paths) {
@@ -199,7 +211,7 @@ Schema.prototype.validate = function (obj, mixedPath) {
 
     if (this.throws) {
         if (!results.ok) {
-            throw new Error(JSON.stringify(results.msgs));
+            throw new ValidationError(results.msgs);
         }
         return retObj;
     } else {

@@ -70,10 +70,37 @@ describe('Schema.prototype.validate', function () {
 			});
 		});
 
-		it('should validate', function () {
+		it('should substitute defaults and choose the right mixed path', function () {
 			var obj = schema.validate({
-				
-			});
+				attrs : {
+					user1 : {
+						voteType : 1
+					},
+					user2 : {
+						voteType : 0
+					}
+				}
+			}, 'attrs.votes');
+
+			// console.log(obj);
+
+			obj.attrs.user1.voteType.should.be.equal(1);
+			obj.attrs.user2.voteType.should.be.equal(0);
+			obj.proxType.should.be.equal(1);
+		});
+
+		it('should throw if some conditions are unmet', function () {
+			var obj;
+
+			(function () {
+				obj = schema.validate({
+					attrs : {
+						user1 : {
+							voteType : 1
+						}
+					}
+				}, 'attrs.votes');
+			}).should.throw();
 		});
 	});
 });
