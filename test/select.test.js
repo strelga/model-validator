@@ -26,6 +26,12 @@ describe('select', function () {
 			validator.should.be.instanceOf(types.DateValidator);
 		});
 
+		it('should return ArrayValidator if type is Array', function () {
+			var validator = select.validator([Number]);
+			validator.should.be.instanceOf(types.ArrayValidator);
+			validator.typeValidator.should.be.instanceOf(types.NumberValidator);
+		});
+
 		it('should throw if there is no such validator', function () {
 			var selectValidator = function () {
 				select.validator('hello');

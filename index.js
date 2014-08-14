@@ -6,7 +6,7 @@ var ValidationError = require('./lib/error');
 var select = require('./lib/types/select');
 
 var Schema = module.exports = function (conditions, options) {
-    this.throws = (options && options.throws) ? options.throws : true;
+    this.throws = (options && (typeof options.throws !== "undefined")) ? options.throws : true;
 
     this.pathsInit = {};
     this.paths = {};
