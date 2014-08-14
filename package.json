@@ -1,6 +1,6 @@
 {
   "name": "model-validator",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Validator of MongoDB models",
   "main": "index.js",
   "scripts": {
