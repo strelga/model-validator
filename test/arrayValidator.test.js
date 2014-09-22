@@ -15,7 +15,7 @@ describe('ArrayValidator', function () {
 			result.ok.should.be.ok;
 		});
 
-		it('shiuld assert defective array of Numbers', function () {
+		it('should assert defective array of Numbers', function () {
 			var arrayValidator = new ArrayValidator(Number, select);
 
 			var arr = [1, 2, true];
